@@ -248,3 +248,6 @@ MIT
 #Download from installer in windows
 
 https://drive.google.com/file/d/1Ztnu6gZoRmamvH_iitpa8wf38eXcqkQU/view?usp=drive_link
+
+#usage docs
+https://drive.google.com/drive/folders/1Mw6pv1GS_B23o6srqV1LcT29Ddts7dyZ
