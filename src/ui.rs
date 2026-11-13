@@ -15,10 +15,7 @@ const MAX_RESULT_TITLE_WIDTH: usize = 60;
 pub fn print_banner() {
     println!();
     println!("{}", style("  ytpdr").bold().blue());
-    println!(
-        "{}",
-        style("  YouTube Playlist Downloader").blue().bright()
-    );
+    println!("{}", style("  YouTube Playlist Downloader").blue().bright());
     println!(
         "{}",
         style(format!("  v{}", env!("CARGO_PKG_VERSION"))).dim()
@@ -34,7 +31,11 @@ pub fn print_config(config: &DownloadConfig) {
         config.quality.as_str().to_uppercase()
     );
     println!("{}   {}", style("Format:").dim(), config.merge_format);
-    println!("{}   {}", style("Output:").dim(), config.output_dir.display());
+    println!(
+        "{}   {}",
+        style("Output:").dim(),
+        config.output_dir.display()
+    );
 
     let subtitles = if config.subtitles.enabled {
         format!("enabled ({})", config.subtitles.languages.join(", "))

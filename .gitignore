@@ -1,5 +1,7 @@
 /target
 /downloads
+/dist
+/installer/bundle
 *.mp4
 *.mkv
 *.webm

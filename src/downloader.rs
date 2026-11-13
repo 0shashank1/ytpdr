@@ -173,7 +173,12 @@ fn download_playlist(config: &DownloadConfig) -> Result<PlaylistResult, YtpdErro
     for (index, entry) in metadata.entries.iter().enumerate() {
         ui::print_video_heading(index + 1, metadata.entries.len(), &entry.title);
         let entry_url = entry.watch_url();
-        videos.push(download_video(&entry_url, config, Some(&folder), Some(entry)));
+        videos.push(download_video(
+            &entry_url,
+            config,
+            Some(&folder),
+            Some(entry),
+        ));
     }
 
     Ok(PlaylistResult {
@@ -186,10 +191,7 @@ fn download_playlist(config: &DownloadConfig) -> Result<PlaylistResult, YtpdErro
 
 fn extract_video_metadata(url: &str, config: &DownloadConfig) -> Result<MediaInfo, YtpdError> {
     let value = extract_json(url, config, false)?;
-    let id = value
-        .get("id")
-        .and_then(Value::as_str)
-        .unwrap_or("unknown");
+    let id = value.get("id").and_then(Value::as_str).unwrap_or("unknown");
     let title = value
         .get("title")
         .and_then(Value::as_str)
@@ -208,10 +210,7 @@ fn extract_playlist_metadata(
     config: &DownloadConfig,
 ) -> Result<PlaylistMetadata, YtpdError> {
     let value = extract_json(url, config, true)?;
-    let id = value
-        .get("id")
-        .and_then(Value::as_str)
-        .unwrap_or("unknown");
+    let id = value.get("id").and_then(Value::as_str).unwrap_or("unknown");
     let title = value
         .get("title")
         .and_then(Value::as_str)
@@ -262,6 +261,9 @@ fn extract_json(
     flat_playlist: bool,
 ) -> Result<Value, YtpdError> {
     let mut command = Command::new(yt_dlp_binary());
+    if let Some(ffmpeg_dir) = ffmpeg_directory() {
+        command.arg("--ffmpeg-location").arg(ffmpeg_dir);
+    }
     command
         .arg("--dump-single-json")
         .arg("--no-warnings")
@@ -366,12 +368,12 @@ fn run_download(
     Ok(())
 }
 
-fn build_download_command(
-    config: &DownloadConfig,
-    url: &str,
-    output_template: &str,
-) -> Command {
+fn build_download_command(config: &DownloadConfig, url: &str, output_template: &str) -> Command {
     let mut command = Command::new(yt_dlp_binary());
+
+    if let Some(ffmpeg_dir) = ffmpeg_directory() {
+        command.arg("--ffmpeg-location").arg(ffmpeg_dir);
+    }
 
     command
         .arg("--format")
@@ -420,9 +422,7 @@ fn build_download_command(
         command.arg("--embed-metadata");
     }
 
-    command
-        .arg("--remux-video")
-        .arg(&config.merge_format);
+    command.arg("--remux-video").arg(&config.merge_format);
 
     if let Some(rate_limit) = &config.rate_limit {
         command.arg("--limit-rate").arg(rate_limit);
@@ -470,8 +470,41 @@ fn parse_number(value: &str) -> Option<u64> {
     }
 }
 
-fn yt_dlp_binary() -> String {
-    std::env::var("YTPDR_YT_DLP").unwrap_or_else(|_| "yt-dlp".to_string())
+fn yt_dlp_binary() -> PathBuf {
+    if let Ok(override_path) = std::env::var("YTPDR_YT_DLP") {
+        return PathBuf::from(override_path);
+    }
+
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(exe_dir) = current_exe.parent() {
+            let candidate = if cfg!(windows) {
+                exe_dir.join("yt-dlp.exe")
+            } else {
+                exe_dir.join("yt-dlp")
+            };
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
+    }
+
+    PathBuf::from("yt-dlp")
+}
+
+fn ffmpeg_directory() -> Option<PathBuf> {
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(exe_dir) = current_exe.parent() {
+            let candidate = if cfg!(windows) {
+                exe_dir.join("ffmpeg.exe")
+            } else {
+                exe_dir.join("ffmpeg")
+            };
+            if candidate.is_file() {
+                return Some(exe_dir.to_path_buf());
+            }
+        }
+    }
+    None
 }
 
 fn output_template(folder: &Path) -> String {
@@ -569,10 +602,7 @@ mod tests {
 
         assert_eq!(info.id, "abc123");
         assert_eq!(info.title, "A video");
-        assert_eq!(
-            info.watch_url(),
-            "https://www.youtube.com/watch?v=abc123"
-        );
+        assert_eq!(info.watch_url(), "https://www.youtube.com/watch?v=abc123");
     }
 
     #[test]

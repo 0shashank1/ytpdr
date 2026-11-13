@@ -29,6 +29,8 @@ progress reporting, and result presentation.
 - **yt-dlp** available on `PATH`
 - **ffmpeg** available on `PATH`
 
+### Linux & macOS
+
 ```bash
 # Fedora
 sudo dnf install ffmpeg
@@ -42,12 +44,45 @@ sudo apt install yt-dlp
 brew install ffmpeg yt-dlp
 ```
 
+### Windows
+
+```powershell
+# Using winget (recommended)
+winget install --id Gyan.FFmpeg -e
+winget install --id yt-dlp.yt-dlp -e
+
+# Or using Chocolatey
+choco install ffmpeg yt-dlp
+
+# Or using Scoop
+scoop install ffmpeg yt-dlp
+```
+
+> [!NOTE]
+> On Windows, restart your terminal after installing `ffmpeg` and `yt-dlp` so that the updated `PATH` is loaded into your shell session.
+
 ## Installation
+
+### Automatic (Windows PowerShell)
+
+Run the included PowerShell installer which checks prerequisites, installs `ytpdr`, and configures your `PATH`:
+
+```powershell
+cd ytpdr
+.\install.ps1
+```
+
+### Manual (All Platforms)
 
 ```bash
 cd ytpdr
 cargo install --path .
 ```
+
+> [!TIP]
+> Ensure Cargo's bin directory is in your `PATH`:
+> - **Linux / macOS**: `~/.cargo/bin`
+> - **Windows**: `%USERPROFILE%\.cargo\bin` (e.g. `C:\Users\<username>\.cargo\bin`)
 
 For development:
 
@@ -208,3 +243,8 @@ cargo build --release
 ## License
 
 MIT
+
+
+#Download from installer in windows
+
+https://drive.google.com/file/d/1Ztnu6gZoRmamvH_iitpa8wf38eXcqkQU/view?usp=drive_link

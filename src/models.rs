@@ -43,11 +43,15 @@ static VIDEO_PATTERNS: LazyLock<[Regex; 4]> = LazyLock::new(|| {
 /// playlist. Unknown URLs fall back to [`UrlType::Video`] so that `yt-dlp` can
 /// make the final decision.
 pub fn classify_url(url: &str) -> UrlType {
-    if PLAYLIST_PATTERNS.iter().any(|pattern| pattern.is_match(url)) {
+    let clean = url.trim().trim_matches(|c| c == '\'' || c == '"').trim();
+    if PLAYLIST_PATTERNS
+        .iter()
+        .any(|pattern| pattern.is_match(clean))
+    {
         return UrlType::Playlist;
     }
 
-    if VIDEO_PATTERNS.iter().any(|pattern| pattern.is_match(url)) {
+    if VIDEO_PATTERNS.iter().any(|pattern| pattern.is_match(clean)) {
         return UrlType::Video;
     }
 

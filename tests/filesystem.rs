@@ -44,8 +44,7 @@ fn creates_folder_with_video_id() {
 #[test]
 fn sanitizes_title_when_creating_folder() {
     let temp = tempdir().expect("tempdir");
-    let folder =
-        build_video_folder(temp.path(), "Bad: Name? <Yes>", "xyz").expect("folder");
+    let folder = build_video_folder(temp.path(), "Bad: Name? <Yes>", "xyz").expect("folder");
 
     assert!(folder.exists());
     let name = folder.file_name().unwrap().to_string_lossy();

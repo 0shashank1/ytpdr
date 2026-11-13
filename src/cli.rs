@@ -118,11 +118,15 @@ impl Cli {
             ..
         } = self;
 
+        let url = clean_input(&url);
         let effective_url = if playlist_as_video && url.contains("list=") {
             strip_playlist_params(&url)
         } else {
             url
         };
+
+        let cookies = cookies.map(clean_path);
+        let archive = archive.map(clean_path);
 
         if let Some(cookies_path) = cookies.as_ref().filter(|path| !path.exists()) {
             return Err(YtpdError::Filesystem(format!(
@@ -134,6 +138,7 @@ impl Cli {
         let languages: Vec<String> = sub_langs
             .split(',')
             .map(str::trim)
+            .map(|s| s.trim_matches(|c| c == '\'' || c == '"').trim())
             .filter(|language| !language.is_empty())
             .map(ToOwned::to_owned)
             .collect();
@@ -202,15 +207,34 @@ fn init_logging(verbose: bool) {
     let _ = builder.try_init();
 }
 
-fn strip_playlist_params(url: &str) -> String {
-    let candidate = if url.contains("://") {
-        url.to_string()
+fn clean_input(s: &str) -> String {
+    let trimmed = s.trim();
+    trimmed
+        .trim_matches(|c| c == '\'' || c == '"')
+        .trim()
+        .to_string()
+}
+
+fn clean_path(path: PathBuf) -> PathBuf {
+    let s = path.to_string_lossy();
+    let trimmed = s.trim().trim_matches(|c| c == '\'' || c == '"').trim();
+    if trimmed.len() != s.len() {
+        PathBuf::from(trimmed)
     } else {
-        format!("https://{url}")
+        path
+    }
+}
+
+fn strip_playlist_params(url: &str) -> String {
+    let clean = clean_input(url);
+    let candidate = if clean.contains("://") {
+        clean.clone()
+    } else {
+        format!("https://{clean}")
     };
 
     let Ok(mut parsed) = Url::parse(&candidate) else {
-        return url.to_string();
+        return clean;
     };
 
     let retained: Vec<(String, String)> = parsed
@@ -231,7 +255,32 @@ fn strip_playlist_params(url: &str) -> String {
     parsed.to_string()
 }
 
+fn expand_tilde(path: PathBuf) -> PathBuf {
+    let path_str = path.to_string_lossy();
+    if path_str == "~" {
+        if let Some(home) = home_dir() {
+            return home;
+        }
+    } else if let Some(sub) = path_str
+        .strip_prefix("~/")
+        .or_else(|| path_str.strip_prefix("~\\"))
+    {
+        if let Some(home) = home_dir() {
+            return home.join(sub);
+        }
+    }
+    path
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+}
+
 fn absolute_path(path: PathBuf) -> PathBuf {
+    let path = clean_path(path);
+    let path = expand_tilde(path);
     if path.is_absolute() {
         return path;
     }
@@ -244,8 +293,6 @@ fn absolute_path(path: PathBuf) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use super::*;
 
     fn parse(args: &[&str]) -> Cli {
@@ -297,10 +344,7 @@ mod tests {
         .into_config()
         .expect("config");
 
-        assert_eq!(
-            config.url,
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        );
+        assert_eq!(config.url, "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
     }
 
     #[test]
@@ -341,11 +385,42 @@ mod tests {
 
     #[test]
     fn accepts_absolute_output_path() {
-        let path = Path::new("/tmp/ytpdr-output");
-        let config = parse(&["ytpdr", "--output", "/tmp/ytpdr-output", "video"])
+        #[cfg(windows)]
+        let (raw, expected) = (
+            "C:\\tmp\\ytpdr-output",
+            PathBuf::from("C:\\tmp\\ytpdr-output"),
+        );
+        #[cfg(not(windows))]
+        let (raw, expected) = ("/tmp/ytpdr-output", PathBuf::from("/tmp/ytpdr-output"));
+
+        let config = parse(&["ytpdr", "--output", raw, "video"])
             .into_config()
             .expect("config");
 
-        assert_eq!(config.output_dir, path);
+        assert_eq!(config.output_dir, expected);
+    }
+
+    #[test]
+    fn expands_tilde_output_path() {
+        if let Some(home) = home_dir() {
+            let config = parse(&["ytpdr", "--output", "~/Videos", "video"])
+                .into_config()
+                .expect("config");
+
+            assert_eq!(config.output_dir, home.join("Videos"));
+        }
+    }
+
+    #[test]
+    fn strips_enclosing_single_and_double_quotes_from_url() {
+        let config = parse(&["ytpdr", "'https://youtu.be/dQw4w9WgXcQ'"])
+            .into_config()
+            .expect("config");
+        assert_eq!(config.url, "https://youtu.be/dQw4w9WgXcQ");
+
+        let config2 = parse(&["ytpdr", "\"https://youtu.be/dQw4w9WgXcQ\""])
+            .into_config()
+            .expect("config");
+        assert_eq!(config2.url, "https://youtu.be/dQw4w9WgXcQ");
     }
 }

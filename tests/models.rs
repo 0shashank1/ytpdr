@@ -12,10 +12,7 @@ fn classifies_standard_video_url() {
 
 #[test]
 fn classifies_short_video_url() {
-    assert_eq!(
-        classify_url("https://youtu.be/dQw4w9WgXcQ"),
-        UrlType::Video
-    );
+    assert_eq!(classify_url("https://youtu.be/dQw4w9WgXcQ"), UrlType::Video);
 }
 
 #[test]
@@ -57,6 +54,20 @@ fn classifies_url_without_protocol() {
     assert_eq!(
         classify_url("youtube.com/watch?v=dQw4w9WgXcQ"),
         UrlType::Video
+    );
+}
+
+#[test]
+fn classifies_quoted_url() {
+    assert_eq!(
+        classify_url("'https://www.youtube.com/watch?v=dQw4w9WgXcQ'"),
+        UrlType::Video
+    );
+    assert_eq!(
+        classify_url(
+            "\"https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf\""
+        ),
+        UrlType::Playlist
     );
 }
 
